@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+last_results.json
+server.log
+.env
+venv/
+.venv/
+*.egg-info/
+dist/
+build/

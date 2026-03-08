@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Indian Stock Scanner</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+  <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{
+  --bg:#0f1117;--card:#1a1d27;--border:#2a2d3e;
+  --text:#e2e8f0;--muted:#8892a4;
+  --accent:#6366f1;--accent2:#818cf8;
+  --green:#10b981;--red:#ef4444;--yellow:#f59e0b;
+}
+*{box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;font-size:14px;margin:0;}
+
+/* header */
+.hdr{background:linear-gradient(135deg,#1e1b4b,#0f1117);border-bottom:1px solid var(--border);padding:16px 0;}
+.hdr h1{font-size:1.4rem;font-weight:700;margin:0;}
+.hdr small{color:var(--muted);font-size:.78rem;}
+
+/* stat cards */
+.scard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;}
+.scard .lbl{color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;}
+.scard .val{font-size:1.7rem;font-weight:700;line-height:1.2;}
+.scard .ico{font-size:1.4rem;opacity:.22;}
+
+/* filter panel */
+.fp{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+
+/* tab nav */
+.ftabs{display:flex;border-bottom:1px solid var(--border);}
+.ftab{
+  flex:1;text-align:center;padding:11px 8px;cursor:pointer;font-weight:600;font-size:.82rem;
+  color:var(--muted);border-bottom:2px solid transparent;transition:all .2s;
+  background:none;border-top:none;border-left:none;border-right:none;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.ftab.active{color:var(--accent2);border-bottom:2px solid var(--accent);background:#12141f;}
+.ftab:hover:not(.active){color:var(--text);}
+.ftab .chevron{font-size:.65rem;transition:transform .2s;opacity:.5;}
+.ftab.active .chevron{transform:rotate(180deg);opacity:1;}
+
+/* collapsible body */
+.ftab-body{display:none;padding:16px 20px;}
+.ftab-body.active{display:block;}
+
+/* 2-column filter grid */
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+.fgrid-section{grid-column:1/-1;padding:10px 0 4px;font-size:.7rem;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--accent2);font-weight:700;border-bottom:1px solid var(--border);}
+
+/* filter row */
+.frow{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 0;border-bottom:1px solid #1e2235;}
+.frow:nth-child(even){padding-left:16px;border-left:1px solid #1e2235;}
+.frow .fcheck{flex-shrink:0;width:16px;height:16px;cursor:pointer;accent-color:var(--accent);}
+.frow .flbl{flex:0 0 170px;color:var(--text);font-size:.8rem;font-weight:500;line-height:1.3;}
+.frow .fcontrols{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.frow.disabled .flbl{color:var(--muted);}
+.frow.disabled .fcontrols{opacity:.35;pointer-events:none;}
+
+/* make inputs slightly smaller */
+.finp{width:82px !important;}
+.finp.wide{width:100px !important;}
+.fsel{font-size:.8rem !important;padding:5px 7px !important;}
+
+/* inputs & selects */
+.finp,.fsel{background:#12141f;border:1px solid var(--border);color:var(--text);
+  border-radius:6px;padding:6px 10px;font-size:.84rem;}
+.finp{width:100px;}
+.finp.wide{width:130px;}
+.fsel{cursor:pointer;}
+.finp:focus,.fsel:focus{outline:none;border-color:var(--accent);}
+.fsep{color:var(--muted);font-size:.8rem;}
+
+/* always-on badge */
+.always-on{font-size:.68rem;background:#1e3a5f;color:#93c5fd;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle;}
+
+/* buttons */
+.btn-scan{background:var(--accent);border:none;color:#fff;padding:10px 24px;border-radius:8px;font-weight:600;cursor:pointer;transition:background .2s;}
+.btn-scan:hover{background:var(--accent2);}
+.btn-scan:disabled{opacity:.5;cursor:not-allowed;}
+.btn-stop{background:#7f1d1d;border:none;color:#fca5a5;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;}
+.btn-stop:hover{background:#991b1b;}
+.btn-out{background:transparent;border:1px solid var(--border);color:var(--text);padding:9px 16px;border-radius:8px;cursor:pointer;}
+.btn-out:hover{border-color:var(--accent);color:var(--accent);}
+.btn-sm{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:6px;font-size:.76rem;cursor:pointer;}
+.btn-sm:hover{border-color:var(--accent);color:var(--accent);}
+
+/* progress */
+#progWrap{display:none;}
+.pbar-bg{background:var(--border);border-radius:6px;height:8px;}
+.pbar{background:var(--accent);border-radius:6px;height:100%;transition:width .4s;}
+.live{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* table */
+.tw{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+table.dataTable thead th{background:#12141f;color:var(--muted);border-color:var(--border)!important;
+  font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;padding:12px 13px;}
+table.dataTable tbody td{background:var(--card);color:var(--text);border-color:var(--border)!important;
+  padding:10px 13px;vertical-align:middle;}
+table.dataTable tbody tr:hover td{background:#1e2235;}
+table.dataTable tbody tr.nr td{animation:fade .6s ease;}
+@keyframes fade{from{background:#1e3a5f;}to{background:var(--card);}}
+.dataTables_wrapper .dataTables_filter input,.dataTables_wrapper .dataTables_length select{
+  background:#12141f;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;}
+.dataTables_wrapper .dataTables_info,.dataTables_wrapper .dataTables_paginate{color:var(--muted);}
+.dataTables_wrapper .dataTables_paginate .paginate_button.current{
+  background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important;border-radius:6px;}
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover{
+  background:var(--border)!important;border-color:var(--border)!important;color:var(--text)!important;}
+
+/* badges */
+.badge-pill{display:inline-block;min-width:46px;text-align:center;padding:2px 7px;border-radius:20px;font-weight:700;font-size:.78rem;}
+.rsi-lo{background:#064e3b;color:#6ee7b7;}
+.rsi-md{background:#1e3a5f;color:#93c5fd;}
+.rsi-hi{background:#451a03;color:#fcd34d;}
+.rs-lo{background:#1e1b4b;color:#a5b4fc;}
+.rs-md{background:#14532d;color:#86efac;}
+.rs-hi{background:#422006;color:#fde68a;}
+.up{color:var(--green);font-weight:600;}
+.dn{color:var(--red);font-weight:600;}
+.sym-a{color:var(--accent2);font-weight:700;cursor:pointer;}
+.sym-a:hover{text-decoration:underline;}
+.chip{background:#1e293b;color:var(--muted);border-radius:4px;padding:2px 6px;font-size:.7rem;}
+.prox-bg{height:4px;border-radius:3px;background:var(--border);margin-top:3px;}
+.prox-fill{height:100%;border-radius:3px;}
+
+/* view toggle */
+.view-toggle{display:flex;gap:4px;}
+.btn-view{background:var(--card);border:1px solid var(--border);color:var(--muted);
+  padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;transition:all .15s;}
+.btn-view.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn-view:hover:not(.active){border-color:var(--accent);color:var(--accent);}
+
+/* chart grid cards */
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.chart-card-hdr{padding:10px 14px 6px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.chart-card-sub{font-size:.71rem;color:var(--muted);padding:3px 14px 4px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chart-card-c{height:200px;}
+.chart-card-r{height:68px;border-top:1px solid var(--border);}
+
+/* empty */
+#empty{text-align:center;padding:60px 20px;color:var(--muted);}
+#empty i{font-size:2.8rem;margin-bottom:14px;}
+
+/* chart modal */
+.cmod .modal-dialog{max-width:980px;}
+.cmod .modal-content{background:var(--card);border:1px solid var(--border);border-radius:14px;color:var(--text);}
+.cmod .modal-header{border-bottom:1px solid var(--border);padding:14px 20px;}
+.cmod .modal-body{padding:0;}
+.cmod .btn-close{filter:invert(1);}
+#cm{width:100%;height:350px;}
+#cr{width:100%;height:120px;border-top:1px solid var(--border);}
+#cv{width:100%;height:80px;border-top:1px solid var(--border);}
+.cleg{padding:8px 16px;background:#12141f;font-size:.74rem;color:var(--muted);
+  display:flex;gap:16px;flex-wrap:wrap;border-top:1px solid var(--border);border-radius:0 0 14px 14px;}
+.cleg strong{color:var(--text);}
+#cload{display:flex;align-items:center;justify-content:center;height:550px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="container">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+      <div>
+        <h1><i class="fa-solid fa-chart-line me-2" style="color:var(--accent2)"></i>Indian Stock Scanner</h1>
+        <small>NSE · Real-time results · Nifty 50 benchmark</small>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn-out" onclick="exportCSV()"><i class="fa-solid fa-download me-1"></i>Export</button>
+        <button class="btn-stop" id="btnStop" onclick="stopScan()" style="display:none"><i class="fa-solid fa-stop me-1"></i>Stop</button>
+        <button class="btn-scan" id="btnScan" onclick="startScan()"><i class="fa-solid fa-magnifying-glass me-1"></i>Scan Now</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="container py-4">
+
+  <!-- STAT CARDS -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="scard d-flex justify-content-between">
+      <div><div class="lbl">Stocks Scanned</div><div class="val" id="sTotal">—</div></div>
+      <i class="fa-solid fa-database ico align-self-center"></i>
+    </div></div>
+    <div class="col-6 col-md-3"><div class="scard d-flex justify-content-between">
+      <div><div class="lbl">Passed Filters</div><div class="val" id="sFound" style="color:var(--green)">—</div></div>
+      <i class="fa-solid fa-filter ico align-self-center"></i>
+    </div></div>
+    <div class="col-6 col-md-3"><div class="scard d-flex justify-content-between">
+      <div><div class="lbl">Last Scan</div><div style="font-size:.9rem;padding-top:8px;font-weight:600" id="sTime">—</div></div>
+      <i class="fa-solid fa-clock ico align-self-center"></i>
+    </div></div>
+    <div class="col-6 col-md-3"><div class="scard d-flex justify-content-between">
+      <div><div class="lbl">Duration</div><div class="val" id="sDur">—</div></div>
+      <i class="fa-solid fa-stopwatch ico align-self-center"></i>
+    </div></div>
+  </div>
+
+  <!-- FILTER PANEL -->
+  <div class="fp mb-4">
+    <!-- Tab nav -->
+    <div class="ftabs">
+      <button class="ftab active" onclick="switchTab('tech',this)"><i class="fa-solid fa-chart-line"></i>Technicals<i class="fa-solid fa-chevron-down chevron"></i></button>
+      <button class="ftab"        onclick="switchTab('fund',this)"><i class="fa-solid fa-building-columns"></i>Fundamentals<i class="fa-solid fa-chevron-down chevron"></i></button>
+      <button class="ftab"        onclick="switchTab('misc',this)"><i class="fa-solid fa-gear"></i>Miscellaneous<i class="fa-solid fa-chevron-down chevron"></i></button>
+      <div style="flex:2;display:flex;align-items:center;justify-content:flex-end;padding-right:16px;gap:8px;">
+        <button class="btn-sm" onclick="resetFilters()"><i class="fa-solid fa-rotate-left me-1"></i>Reset</button>
+      </div>
+    </div>
+
+    <!-- TECHNICALS TAB -->
+    <div class="ftab-body active" id="tab-tech">
+      <div class="fgrid">
+
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckRsi" checked onchange="toggleRow(this)">
+          <span class="flbl">RSI Range <span class="always-on">Always On</span></span>
+          <div class="fcontrols">
+            <input type="number" id="fRsiMin" class="finp" value="30" min="0" max="100">
+            <span class="fsep">–</span>
+            <input type="number" id="fRsiMax" class="finp" value="70" min="0" max="100">
+          </div>
+        </div>
+
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckRs" checked onchange="toggleRow(this)">
+          <span class="flbl">Overall RS Range <span title="vs Nifty 50" style="color:var(--muted);font-size:.75rem">(vs Nifty)</span></span>
+          <div class="fcontrols">
+            <input type="number" id="fRsMin" class="finp" value="50" min="0" max="100">
+            <span class="fsep">–</span>
+            <input type="number" id="fRsMax" class="finp" value="100" min="0" max="100">
+          </div>
+        </div>
+
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ck52High" checked onchange="toggleRow(this)">
+          <span class="flbl">% from 52W High</span>
+          <div class="fcontrols">
+            <input type="number" id="f52hMin" class="finp" value="0"  min="0" max="100">
+            <span class="fsep">–</span>
+            <input type="number" id="f52hMax" class="finp" value="30" min="0" max="100">
+          </div>
+        </div>
+
+        <div class="frow" id="row52Low">
+          <input type="checkbox" class="fcheck" id="ck52Low" onchange="toggleRow(this)">
+          <span class="flbl">% from 52W Low</span>
+          <div class="fcontrols">
+            <input type="number" id="f52lMin" class="finp" value="0"    min="0">
+            <span class="fsep">–</span>
+            <input type="number" id="f52lMax" class="finp" value="1000" min="0">
+          </div>
+        </div>
+
+        <div class="frow" id="rowPrice">
+          <input type="checkbox" class="fcheck" id="ckPrice" onchange="toggleRow(this)">
+          <span class="flbl">Stock Price (₹)</span>
+          <div class="fcontrols">
+            <input type="number" id="fPrMin" class="finp" value="0"      min="0">
+            <span class="fsep">–</span>
+            <input type="number" id="fPrMax" class="finp wide" value="150000" min="0">
+          </div>
+        </div>
+
+        <div class="frow" id="rowVsMA">
+          <input type="checkbox" class="fcheck" id="ckVsMA" onchange="toggleRow(this)">
+          <span class="flbl">Price Above / Below MA</span>
+          <div class="fcontrols">
+            <select id="fVsMADir" class="fsel">
+              <option value="above">Above</option>
+              <option value="below">Below</option>
+            </select>
+            <select id="fVsMAPeriod" class="fsel">
+              <option value="20">20 Days MA</option>
+              <option value="50">50 Days MA</option>
+              <option value="100">100 Days MA</option>
+              <option value="200" selected>200 Days MA</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="frow" id="rowMAOrder">
+          <input type="checkbox" class="fcheck" id="ckMAOrder" onchange="toggleRow(this)">
+          <span class="flbl">MA Order</span>
+          <div class="fcontrols">
+            <select id="fMAFast" class="fsel"><option value="20" selected>20 MA</option><option value="50">50 MA</option></select>
+            <span class="fsep">≥</span>
+            <select id="fMAMid"  class="fsel"><option value="20">20 MA</option><option value="50" selected>50 MA</option></select>
+            <span class="fsep">≥</span>
+            <select id="fMASlow" class="fsel"><option value="50">50 MA</option><option value="100">100 MA</option><option value="200" selected>200 MA</option></select>
+          </div>
+        </div>
+
+        <div class="frow" id="rowRupeeVol">
+          <input type="checkbox" class="fcheck" id="ckRupeeVol" onchange="toggleRow(this)">
+          <span class="flbl">AVG Rupee Vol 30D (Cr.) ≥</span>
+          <div class="fcontrols">
+            <input type="number" id="fRupeeVol" class="finp" value="5" min="0" step="1">
+          </div>
+        </div>
+
+        <div class="frow" id="rowADR">
+          <input type="checkbox" class="fcheck" id="ckADR" onchange="toggleRow(this)">
+          <span class="flbl">MA ADR (%)</span>
+          <div class="fcontrols">
+            <select id="fADRDays" class="fsel">
+              <option value="10">10 Days</option>
+              <option value="20" selected>20 Days</option>
+              <option value="50">50 Days</option>
+            </select>
+            <span class="fsep">≥</span>
+            <input type="number" id="fADRMin" class="finp" value="1" min="0" step="0.5">
+          </div>
+        </div>
+
+      </div><!-- /fgrid -->
+    </div><!-- /tech tab -->
+
+    <!-- FUNDAMENTALS TAB -->
+    <div class="ftab-body" id="tab-fund">
+      <div class="fgrid">
+
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckMC" checked onchange="toggleRow(this)">
+          <span class="flbl">Market Cap (Cr.)</span>
+          <div class="fcontrols">
+            <input type="number" id="fMcMin" class="finp wide" value="500"    min="0" step="100">
+            <span class="fsep">–</span>
+            <input type="number" id="fMcMax" class="finp wide" value="100000" min="0" step="1000">
+          </div>
+        </div>
+
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckVol" checked onchange="toggleRow(this)">
+          <span class="flbl">Min Avg Daily Volume</span>
+          <div class="fcontrols">
+            <input type="number" id="fVol" class="finp wide" value="50000" min="0" step="10000">
+          </div>
+        </div>
+
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckPE" onchange="toggleRow(this)">
+          <span class="flbl">P/E Ratio</span>
+          <div class="fcontrols">
+            <input type="number" id="fPeMin" class="finp" value="0"  min="0" step="1">
+            <span class="fsep">–</span>
+            <input type="number" id="fPeMax" class="finp" value="50" min="0" step="1">
+          </div>
+        </div>
+
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckROE" onchange="toggleRow(this)">
+          <span class="flbl">ROE (%)</span>
+          <div class="fcontrols">
+            <input type="number" id="fRoeMin" class="finp" value="10"  min="0" step="1">
+            <span class="fsep">–</span>
+            <input type="number" id="fRoeMax" class="finp" value="100" min="0" step="1">
+          </div>
+        </div>
+
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckDE" onchange="toggleRow(this)">
+          <span class="flbl">Debt / Equity Ratio</span>
+          <div class="fcontrols">
+            <input type="number" id="fDeMin" class="finp" value="0" min="0" step="0.1">
+            <span class="fsep">–</span>
+            <input type="number" id="fDeMax" class="finp" value="1" min="0" step="0.1">
+          </div>
+        </div>
+
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckEpsG" onchange="toggleRow(this)">
+          <span class="flbl">EPS Growth YoY (%)</span>
+          <div class="fcontrols">
+            <input type="number" id="fEpsGMin" class="finp" value="10"  step="5">
+            <span class="fsep">–</span>
+            <input type="number" id="fEpsGMax" class="finp" value="500" step="10">
+          </div>
+        </div>
+
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckRevG" onchange="toggleRow(this)">
+          <span class="flbl">Revenue Growth YoY (%)</span>
+          <div class="fcontrols">
+            <input type="number" id="fRevGMin" class="finp" value="10"  step="5">
+            <span class="fsep">–</span>
+            <input type="number" id="fRevGMax" class="finp" value="500" step="10">
+          </div>
+        </div>
+
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckFF" onchange="toggleRow(this)">
+          <span class="flbl">Free Float (%)</span>
+          <div class="fcontrols">
+            <input type="number" id="fFfMin" class="finp" value="10"  min="0" max="100" step="5">
+            <span class="fsep">–</span>
+            <input type="number" id="fFfMax" class="finp" value="100" min="0" max="100" step="5">
+          </div>
+        </div>
+
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckPromoter" onchange="toggleRow(this)">
+          <span class="flbl">Promoter Holding (%)</span>
+          <div class="fcontrols">
+            <input type="number" id="fPromMin" class="finp" value="40"  min="0" max="100" step="5">
+            <span class="fsep">–</span>
+            <input type="number" id="fPromMax" class="finp" value="100" min="0" max="100" step="5">
+          </div>
+        </div>
+
+        <!-- Quarterly Growth section header spans full width -->
+        <div class="fgrid-section"><i class="fa-solid fa-chart-bar me-1"></i>Quarterly Growth Filters</div>
+
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckQoqSales" onchange="toggleRow(this)">
+          <span class="flbl">QoQ % Sales Growth &gt;</span>
+          <div class="fcontrols"><input type="number" id="fQoqSales" class="finp" value="0" step="5"></div>
+        </div>
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckYoySales" onchange="toggleRow(this)">
+          <span class="flbl">YoY % Sales Growth &gt;</span>
+          <div class="fcontrols"><input type="number" id="fYoySales" class="finp" value="10" step="5"></div>
+        </div>
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckQoqNp" onchange="toggleRow(this)">
+          <span class="flbl">QoQ % Net Profit Growth &gt;</span>
+          <div class="fcontrols"><input type="number" id="fQoqNp" class="finp" value="0" step="5"></div>
+        </div>
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckYoyNp" onchange="toggleRow(this)">
+          <span class="flbl">YoY % Net Profit Growth &gt;</span>
+          <div class="fcontrols"><input type="number" id="fYoyNp" class="finp" value="10" step="5"></div>
+        </div>
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckQoqEps" onchange="toggleRow(this)">
+          <span class="flbl">QoQ % EPS Growth &gt;</span>
+          <div class="fcontrols"><input type="number" id="fQoqEps" class="finp" value="0" step="5"></div>
+        </div>
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckYoyEps" onchange="toggleRow(this)">
+          <span class="flbl">YoY % EPS Growth &gt;</span>
+          <div class="fcontrols"><input type="number" id="fYoyEps" class="finp" value="10" step="5"></div>
+        </div>
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckQoqOpm" onchange="toggleRow(this)">
+          <span class="flbl">QoQ OPM Growth (pts) &gt;</span>
+          <div class="fcontrols"><input type="number" id="fQoqOpm" class="finp" value="0" step="1"></div>
+        </div>
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckYoyOpm" onchange="toggleRow(this)">
+          <span class="flbl">YoY OPM Growth (pts) &gt;</span>
+          <div class="fcontrols"><input type="number" id="fYoyOpm" class="finp" value="0" step="1"></div>
+        </div>
+        <div class="frow">
+          <input type="checkbox" class="fcheck" id="ckSales5yr" onchange="toggleRow(this)">
+          <span class="flbl">Sales 5Yr CAGR (%) &gt;</span>
+          <div class="fcontrols"><input type="number" id="fSales5yr" class="finp" value="10" step="5"></div>
+        </div>
+
+      </div><!-- /fgrid -->
+
+      <div class="mt-2 px-1" style="font-size:.72rem;color:var(--muted)">
+        <i class="fa-solid fa-circle-info me-1"></i>
+        Fundamental data from yfinance — may have 1–3 month lag. QoQ/YoY based on latest quarterly filings.
+      </div>
+
+    </div><!-- /fund tab -->
+
+    <!-- MISCELLANEOUS TAB -->
+    <div class="ftab-body" id="tab-misc">
+      <div style="color:var(--muted);text-align:center;padding:40px 20px;">
+        <i class="fa-solid fa-gear fa-2x mb-3 d-block" style="opacity:.3"></i>
+        More filters coming soon.
+      </div>
+    </div>
+
+  </div><!-- /fp -->
+
+  <!-- PROGRESS -->
+  <div id="progWrap" class="scard mb-4">
+    <div class="d-flex justify-content-between mb-2">
+      <span><span class="live me-2"></span><span id="progLbl">Scanning…</span></span>
+      <span id="progPct" style="color:var(--muted)">0%</span>
+    </div>
+    <div class="pbar-bg"><div class="pbar" id="progBar" style="width:0%"></div></div>
+    <div class="mt-2" style="font-size:.74rem;color:var(--muted)" id="progDetail">Initialising…</div>
+  </div>
+
+  <!-- RESULTS SECTION -->
+  <div id="resSec" style="display:none">
+    <!-- toolbar -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span id="resCount" style="color:var(--muted);font-size:.84rem"></span>
+      <div class="view-toggle">
+        <button id="btnListView" class="btn-view active" onclick="setView('list')">
+          <i class="fa-solid fa-list me-1"></i>List</button>
+        <button id="btnChartView" class="btn-view" onclick="setView('chart')">
+          <i class="fa-solid fa-chart-candlestick me-1"></i>Charts</button>
+      </div>
+    </div>
+    <!-- LIST VIEW -->
+    <div id="listView" class="tw">
+      <table id="resTable" class="table table-borderless w-100" style="margin:0">
+        <thead><tr>
+          <th>#</th><th>Symbol</th><th>Company</th>
+          <th>Price (₹)</th><th>Chg %</th>
+          <th>RSI</th><th>RS</th>
+          <th>52W High (₹)</th><th>% from High</th><th>% from Low</th>
+          <th>MA20</th><th>MA50</th><th>MA200</th>
+          <th>Mkt Cap (₹ Cr)</th><th>P/E</th><th>ROE %</th><th>D/E</th>
+          <th>QoQ Sales%</th><th>YoY Sales%</th><th>QoQ NP%</th><th>YoY NP%</th>
+          <th>QoQ EPS%</th><th>YoY EPS%</th><th>QoQ OPM</th><th>YoY OPM</th>
+          <th>5Yr Sales%</th><th>Float%</th><th>Promoter%</th>
+          <th>Sector</th><th>Industry</th><th>Volume</th>
+        </tr></thead>
+        <tbody id="resTbody"></tbody>
+      </table>
+    </div>
+    <!-- CHART GRID VIEW -->
+    <div id="chartGrid" style="display:none">
+      <div class="row g-3" id="chartCards"></div>
+    </div>
+  </div>
+
+  <!-- EMPTY -->
+  <div id="empty">
+    <i class="fa-solid fa-magnifying-glass-chart d-block"></i>
+    <h5 class="mt-2">No results yet</h5>
+    <p>Set your filters and click <strong>Scan Now</strong>.<br>
+    Results appear in real-time as each stock is found.</p>
+  </div>
+
+</main>
+
+<!-- CHART MODAL -->
+<div class="modal fade cmod" id="chartModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div><h5 class="modal-title mb-0" id="ctitle">Chart</h5><small id="csubt" class="text-muted"></small></div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="cload"><i class="fa-solid fa-spinner fa-spin me-2"></i>Loading…</div>
+        <div id="ccon" style="display:none">
+          <div id="cm"></div><div id="cr"></div><div id="cv"></div>
+          <div class="cleg" id="cleg"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script>
+
+// ── Tab switching (collapsible toggle) ─────────────────────────────────────────
+function switchTab(id, el) {
+  const wasActive = el.classList.contains('active');
+  document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.ftab-body').forEach(b=>b.classList.remove('active'));
+  if (!wasActive) {
+    el.classList.add('active');
+    document.getElementById('tab-'+id).classList.add('active');
+  }
+}
+
+// ── Enable/disable filter rows ─────────────────────────────────────────────────
+function toggleRow(chk) {
+  const row = chk.closest('.frow');
+  row.classList.toggle('disabled', !chk.checked);
+}
+// init disabled state on load
+document.querySelectorAll('.fcheck').forEach(c => {
+  if (!c.checked) c.closest('.frow').classList.add('disabled');
+});
+
+// ── DataTable ──────────────────────────────────────────────────────────────────
+let dt = null, rowCount = 0;
+let allResults = [];
+let currentView = 'list';
+let cardCharts  = {};       // symbol → [LightweightChart, ...]
+let chartQueue  = [];       // symbols waiting to load mini-charts
+let chartQueueRunning = false;
+
+function initDT() {
+  if (dt) return;
+  dt = $('#resTable').DataTable({ pageLength:25, order:[[8,'asc']],
+    language:{ searchPlaceholder:'Search…', search:'' } });
+}
+
+function addResult(s) {
+  allResults.push(s);
+  addRow(s);
+  if (currentView === 'chart') addChartCard(s);
+}
+
+function addRow(s) {
+  rowCount++;
+  const rsiCls = s.rsi<45?'rsi-lo':s.rsi<55?'rsi-md':'rsi-hi';
+  const rs     = s.rs??50;
+  const rsCls  = rs<65?'rs-lo':rs<80?'rs-md':'rs-hi';
+  const chgCls = s.change_pct>=0?'up':'dn';
+  const arr    = s.change_pct>=0?'▲':'▼';
+  const fill   = Math.max(0,100-s.pct_from_52w_high*(100/30));
+  const fclr   = s.pct_from_52w_high<=5?'#10b981':s.pct_from_52w_high<=15?'#f59e0b':'#6366f1';
+  const sn     = (s.name||s.symbol).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  const abvMA  = p => s[`ma${p}`] ? (s.price>=s[`ma${p}`]?'<span style="color:var(--green)">▲</span>':'<span style="color:var(--red)">▼</span>') + ` ₹${s[`ma${p}`].toLocaleString('en-IN')}` : '—';
+
+  document.getElementById('resSec').style.display='block';
+  document.getElementById('empty').style.display='none';
+  if(!dt) initDT();
+
+  dt.row.add($(` <tr class="nr">
+    <td class="text-muted">${rowCount}</td>
+    <td><a class="sym-a" onclick="openChart('${s.symbol}','${sn}',${s.rsi},${s.pct_from_52w_high},${s.market_cap_cr||0})">${s.symbol}</a></td>
+    <td style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.name||''}">${s.name||'—'}</td>
+    <td><strong>₹${(s.price||0).toLocaleString('en-IN')}</strong></td>
+    <td><span class="${chgCls}">${arr} ${Math.abs(s.change_pct||0).toFixed(2)}%</span></td>
+    <td><span class="badge-pill ${rsiCls}">${(s.rsi||0).toFixed(1)}</span></td>
+    <td><span class="badge-pill ${rsCls}">${rs.toFixed(1)}</span></td>
+    <td>₹${(s.high_52w||0).toLocaleString('en-IN')}</td>
+    <td>${(s.pct_from_52w_high||0).toFixed(1)}%<div class="prox-bg"><div class="prox-fill" style="width:${fill}%;background:${fclr}"></div></div></td>
+    <td>${(s.pct_from_52w_low||0).toFixed(1)}%</td>
+    <td style="font-size:.78rem">${abvMA(20)}</td>
+    <td style="font-size:.78rem">${abvMA(50)}</td>
+    <td style="font-size:.78rem">${abvMA(200)}</td>
+    <td>₹${(s.market_cap_cr||0).toLocaleString('en-IN')}</td>
+    <td>${s.pe>0?s.pe:'—'}</td>
+    <td>${s.roe!=null?(s.roe>0?`<span style="color:var(--green)">${s.roe}%</span>`:`<span style="color:var(--red)">${s.roe}%</span>`):'—'}</td>
+    <td>${s.debt_eq!=null?s.debt_eq:'—'}</td>
+    ${['qoq_sales','yoy_sales','qoq_np','yoy_np','qoq_eps','yoy_eps'].map(k=>{
+      const v=s[k]; return v!=null?(v>=0?`<td><span class="up">+${v}%</span></td>`:`<td><span class="dn">${v}%</span></td>`):'<td>—</td>';
+    }).join('')}
+    ${['qoq_opm','yoy_opm'].map(k=>{
+      const v=s[k]; return v!=null?(v>=0?`<td><span class="up">+${v}</span></td>`:`<td><span class="dn">${v}</span></td>`):'<td>—</td>';
+    }).join('')}
+    <td>${s.sales_5yr!=null?`<span class="${s.sales_5yr>=0?'up':'dn'}">${s.sales_5yr>=0?'+':''}${s.sales_5yr}%</span>`:'—'}</td>
+    <td>${s.free_float!=null?s.free_float+'%':'—'}</td>
+    <td>${s.promoter!=null?s.promoter+'%':'—'}</td>
+    <td><span class="chip">${s.sector||'—'}</span></td>
+    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.industry||''}">${s.industry||'—'}</td>
+    <td>${(s.volume||0).toLocaleString('en-IN')}</td>
+  </tr>`)[0]).draw(false);
+}
+
+// ── View toggle ────────────────────────────────────────────────────────────────
+function setView(v) {
+  currentView = v;
+  document.getElementById('btnListView').classList.toggle('active', v==='list');
+  document.getElementById('btnChartView').classList.toggle('active', v==='chart');
+  document.getElementById('listView').style.display   = v==='list'  ? '' : 'none';
+  document.getElementById('chartGrid').style.display  = v==='chart' ? '' : 'none';
+  if (v==='chart' && document.getElementById('chartCards').children.length===0 && allResults.length>0) {
+    allResults.forEach(s => addChartCard(s));
+    drainChartQueue();
+  }
+}
+
+function clearCardCharts() {
+  Object.values(cardCharts).forEach(arr => arr.forEach(c => { try{ c.remove(); }catch(e){} }));
+  cardCharts = {};
+  chartQueue = [];
+  chartQueueRunning = false;
+  document.getElementById('chartCards').innerHTML = '';
+}
+
+function addChartCard(s) {
+  const rsiCls = s.rsi<45?'rsi-lo':s.rsi<55?'rsi-md':'rsi-hi';
+  const chgCls = s.change_pct>=0?'up':'dn';
+  const arr    = s.change_pct>=0?'▲':'▼';
+  const sn     = (s.name||s.symbol).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  const col = document.createElement('div');
+  col.className = 'col-md-6';
+  col.innerHTML = `
+    <div class="chart-card">
+      <div class="chart-card-hdr">
+        <a class="sym-a" style="font-size:.95rem;font-weight:700"
+           onclick="openChart('${s.symbol}','${sn}',${s.rsi},${s.pct_from_52w_high},${s.market_cap_cr||0})">${s.symbol}</a>
+        <span class="badge-pill ${rsiCls}" style="font-size:.72rem">RSI ${(s.rsi||0).toFixed(1)}</span>
+        <span style="margin-left:auto;font-weight:600">₹${(s.price||0).toLocaleString('en-IN')}</span>
+        <span class="${chgCls}" style="font-size:.8rem">${arr} ${Math.abs(s.change_pct||0).toFixed(2)}%</span>
+      </div>
+      <div class="chart-card-sub">${s.name||''} · ${s.sector||''} · ${s.industry||''}</div>
+      <div id="cg_${s.symbol}" class="chart-card-c">
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:.8rem">
+          <i class="fa-solid fa-spinner fa-spin me-2"></i>Loading…</div>
+      </div>
+      <div id="cgr_${s.symbol}" class="chart-card-r"></div>
+    </div>`;
+  document.getElementById('chartCards').appendChild(col);
+  chartQueue.push(s.symbol);
+  drainChartQueue();
+}
+
+async function drainChartQueue() {
+  if (chartQueueRunning) return;
+  chartQueueRunning = true;
+  while (chartQueue.length > 0) {
+    const sym = chartQueue.shift();
+    await loadMiniChart(sym);
+    await new Promise(r => setTimeout(r, 150));
+  }
+  chartQueueRunning = false;
+}
+
+async function loadMiniChart(sym) {
+  const el  = document.getElementById(`cg_${sym}`);
+  const elr = document.getElementById(`cgr_${sym}`);
+  if (!el) return;
+  try {
+    const resp = await fetch(`/api/chart/${sym}`);
+    if (!resp.ok) throw new Error('no data');
+    const data = await resp.json();
+    el.innerHTML = '';
+    const base = {
+      layout: {background:{color:'#1a1d27'}, textColor:'#8892a4'},
+      grid:   {vertLines:{color:'#2a2d3e'}, horzLines:{color:'#2a2d3e'}},
+      crosshair: {mode: LightweightCharts.CrosshairMode.Normal},
+      rightPriceScale: {borderColor:'#2a2d3e'},
+      timeScale: {borderColor:'#2a2d3e', visible:false},
+      handleScroll: true, handleScale: true,
+    };
+    const mc = LightweightCharts.createChart(el, {...base, height:200});
+    mc.addCandlestickSeries({upColor:'#10b981',downColor:'#ef4444',
+      borderUpColor:'#10b981',borderDownColor:'#ef4444',
+      wickUpColor:'#10b981',wickDownColor:'#ef4444'}).setData(data.candles);
+    mc.timeScale().fitContent();
+
+    elr.innerHTML = '';
+    const rc = LightweightCharts.createChart(elr, {
+      ...base, height:68,
+      rightPriceScale: {visible:false},
+      timeScale: {visible:false},
+      grid: {vertLines:{color:'#2a2d3e'}, horzLines:{color:'transparent'}},
+    });
+    const rd = data.rsi.filter(r => r.value !== null);
+    rc.addLineSeries({color:'#818cf8', lineWidth:1.5, priceLineVisible:false, lastValueVisible:false}).setData(rd);
+    rc.addLineSeries({color:'#ef4444', lineWidth:1, lineStyle:LightweightCharts.LineStyle.Dashed, priceLineVisible:false, lastValueVisible:false}).setData(rd.map(r=>({time:r.time,value:70})));
+    rc.addLineSeries({color:'#10b981', lineWidth:1, lineStyle:LightweightCharts.LineStyle.Dashed, priceLineVisible:false, lastValueVisible:false}).setData(rd.map(r=>({time:r.time,value:30})));
+    rc.timeScale().fitContent();
+    mc.timeScale().subscribeVisibleLogicalRangeChange(r => { if(r) rc.timeScale().setVisibleLogicalRange(r); });
+
+    cardCharts[sym] = [mc, rc];
+  } catch(e) {
+    if (el) el.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:.8rem">No data</div>`;
+  }
+}
+
+// ── Collect filters ────────────────────────────────────────────────────────────
+function v(id, cast=parseFloat) { return cast(document.getElementById(id).value)||0; }
+function chk(id) { return document.getElementById(id).checked; }
+function sel(id) { return document.getElementById(id).value; }
+
+function getFilters() {
+  return {
+    // Technicals
+    rsi_min: v('fRsiMin',parseInt),   rsi_max: v('fRsiMax',parseInt),
+    rs_min:  chk('ckRs') ? v('fRsMin')  : 0,
+    rs_max:  chk('ckRs') ? v('fRsMax')  : 100,
+    pct_52w_high_min: chk('ck52High') ? v('f52hMin') : 0,
+    pct_52w_high_max: chk('ck52High') ? v('f52hMax') : 100,
+    pct_52w_low_enabled: chk('ck52Low'),
+    pct_52w_low_min: v('f52lMin'),    pct_52w_low_max: v('f52lMax'),
+    price_enabled:   chk('ckPrice'),
+    price_min: v('fPrMin'),           price_max: v('fPrMax'),
+    price_vs_ma_enabled: chk('ckVsMA'),
+    price_vs_ma_dir:    sel('fVsMADir'),
+    price_vs_ma_period: parseInt(sel('fVsMAPeriod')),
+    ma_order_enabled: chk('ckMAOrder'),
+    ma_order_fast: parseInt(sel('fMAFast')),
+    ma_order_mid:  parseInt(sel('fMAMid')),
+    ma_order_slow: parseInt(sel('fMASlow')),
+    avg_rupee_vol_enabled: chk('ckRupeeVol'),
+    avg_rupee_vol_min: v('fRupeeVol'),
+    ma_adr_enabled: chk('ckADR'),
+    ma_adr_days:    parseInt(sel('fADRDays')),
+    ma_adr_min:     v('fADRMin'),
+    // Fundamentals
+    market_cap_min_cr: chk('ckMC')  ? v('fMcMin') : 0,
+    market_cap_max_cr: chk('ckMC')  ? v('fMcMax') : 9999999,
+    min_avg_volume:    chk('ckVol') ? v('fVol',parseInt) : 0,
+    pe_enabled:        chk('ckPE'),      pe_min: v('fPeMin'),   pe_max: v('fPeMax'),
+    roe_enabled:       chk('ckROE'),     roe_min: v('fRoeMin'), roe_max: v('fRoeMax'),
+    debt_eq_enabled:   chk('ckDE'),      debt_eq_min: v('fDeMin'), debt_eq_max: v('fDeMax'),
+    eps_growth_enabled:chk('ckEpsG'),    eps_growth_min: v('fEpsGMin'), eps_growth_max: v('fEpsGMax'),
+    rev_growth_enabled:chk('ckRevG'),    rev_growth_min: v('fRevGMin'), rev_growth_max: v('fRevGMax'),
+    free_float_enabled:chk('ckFF'),      free_float_min: v('fFfMin'),   free_float_max: v('fFfMax'),
+    promoter_enabled:  chk('ckPromoter'),promoter_min: v('fPromMin'), promoter_max: v('fPromMax'),
+    // Quarterly growth
+    qoq_sales_enabled: chk('ckQoqSales'), qoq_sales_min: v('fQoqSales'),
+    yoy_sales_enabled: chk('ckYoySales'), yoy_sales_min: v('fYoySales'),
+    qoq_np_enabled:    chk('ckQoqNp'),    qoq_np_min:    v('fQoqNp'),
+    yoy_np_enabled:    chk('ckYoyNp'),    yoy_np_min:    v('fYoyNp'),
+    qoq_eps_enabled:   chk('ckQoqEps'),   qoq_eps_min:   v('fQoqEps'),
+    yoy_eps_enabled:   chk('ckYoyEps'),   yoy_eps_min:   v('fYoyEps'),
+    qoq_opm_enabled:   chk('ckQoqOpm'),   qoq_opm_min:   v('fQoqOpm'),
+    yoy_opm_enabled:   chk('ckYoyOpm'),   yoy_opm_min:   v('fYoyOpm'),
+    sales_5yr_enabled: chk('ckSales5yr'), sales_5yr_min: v('fSales5yr'),
+  };
+}
+
+function resetFilters() {
+  // Technicals
+  document.getElementById('fRsiMin').value=30; document.getElementById('fRsiMax').value=70;
+  document.getElementById('ckRs').checked=true; toggleRow(document.getElementById('ckRs'));
+  document.getElementById('fRsMin').value=50; document.getElementById('fRsMax').value=100;
+  document.getElementById('ck52High').checked=true; toggleRow(document.getElementById('ck52High'));
+  document.getElementById('f52hMin').value=0; document.getElementById('f52hMax').value=30;
+  document.getElementById('ck52Low').checked=false; toggleRow(document.getElementById('ck52Low'));
+  document.getElementById('f52lMin').value=0; document.getElementById('f52lMax').value=1000;
+  document.getElementById('ckPrice').checked=false; toggleRow(document.getElementById('ckPrice'));
+  document.getElementById('fPrMin').value=0; document.getElementById('fPrMax').value=150000;
+  document.getElementById('ckVsMA').checked=false; toggleRow(document.getElementById('ckVsMA'));
+  document.getElementById('ckMAOrder').checked=false; toggleRow(document.getElementById('ckMAOrder'));
+  document.getElementById('ckRupeeVol').checked=false; toggleRow(document.getElementById('ckRupeeVol'));
+  document.getElementById('ckADR').checked=false; toggleRow(document.getElementById('ckADR'));
+  // Fundamentals
+  document.getElementById('ckMC').checked=true;  toggleRow(document.getElementById('ckMC'));
+  document.getElementById('fMcMin').value=500;    document.getElementById('fMcMax').value=100000;
+  document.getElementById('ckVol').checked=true;  toggleRow(document.getElementById('ckVol'));
+  document.getElementById('fVol').value=50000;
+  ['ckPE','ckROE','ckDE','ckEpsG','ckRevG','ckFF','ckPromoter'].forEach(id=>{
+    document.getElementById(id).checked=false; toggleRow(document.getElementById(id));
+  });
+  document.getElementById('fPeMin').value=0;    document.getElementById('fPeMax').value=50;
+  document.getElementById('fRoeMin').value=10;  document.getElementById('fRoeMax').value=100;
+  document.getElementById('fDeMin').value=0;    document.getElementById('fDeMax').value=1;
+  document.getElementById('fEpsGMin').value=10; document.getElementById('fEpsGMax').value=500;
+  document.getElementById('fRevGMin').value=10; document.getElementById('fRevGMax').value=500;
+  document.getElementById('fFfMin').value=10;   document.getElementById('fFfMax').value=100;
+  document.getElementById('fPromMin').value=40; document.getElementById('fPromMax').value=100;
+  ['ckQoqSales','ckYoySales','ckQoqNp','ckYoyNp','ckQoqEps','ckYoyEps','ckQoqOpm','ckYoyOpm','ckSales5yr'].forEach(id=>{
+    document.getElementById(id).checked=false; toggleRow(document.getElementById(id));
+  });
+}
+
+// ── SSE Scan ───────────────────────────────────────────────────────────────────
+let evtSrc = null;
+
+function startScan() {
+  if (evtSrc) { evtSrc.close(); evtSrc=null; }
+  if(dt){dt.clear().draw();} rowCount=0;
+  allResults = [];
+  clearCardCharts();
+  setView('list');
+  document.getElementById('resSec').style.display='none';
+  document.getElementById('empty').style.display='none';
+  document.getElementById('sFound').textContent='0';
+  const btn=document.getElementById('btnScan');
+  btn.disabled=true; btn.innerHTML='<i class="fa-solid fa-spinner fa-spin me-1"></i>Scanning…';
+  document.getElementById('btnStop').style.display='inline-block';
+  document.getElementById('progWrap').style.display='block';
+  document.getElementById('progBar').style.width='0%';
+  document.getElementById('progDetail').textContent='Connecting…';
+
+  const qs=new URLSearchParams(getFilters()).toString();
+  evtSrc=new EventSource(`/api/stream?${qs}`);
+
+  evtSrc.onmessage=(e)=>{
+    const m=JSON.parse(e.data);
+    if(m.type==='start'){
+      document.getElementById('sTotal').textContent=m.total.toLocaleString();
+    } else if(m.type==='progress'){
+      const pct=m.total>0?Math.round(m.processed/m.total*100):0;
+      document.getElementById('progBar').style.width=pct+'%';
+      document.getElementById('progPct').textContent=pct+'%';
+      document.getElementById('progDetail').textContent=
+        `Processed ${m.processed.toLocaleString()} of ${m.total.toLocaleString()} · ${m.found} passed · Batch ${m.batch_label}`;
+      document.getElementById('sFound').textContent=m.found;
+      document.getElementById('sTotal').textContent=m.processed.toLocaleString();
+    } else if(m.type==='result'){
+      addResult(m.data);
+      document.getElementById('sFound').textContent=rowCount;
+    } else if(m.type==='done'){
+      evtSrc.close(); evtSrc=null; scanDone(m);
+    } else if(m.type==='stopped'){
+      evtSrc.close(); evtSrc=null; resetBtn();
+      document.getElementById('sFound').textContent=rowCount;
+      document.getElementById('sDur').textContent=(m.elapsed_sec||0)+'s';
+    } else if(m.type==='error'){
+      evtSrc.close(); evtSrc=null; scanErr(m.message);
+    }
+  };
+  evtSrc.onerror=()=>{ if(evtSrc){evtSrc.close();evtSrc=null;} scanErr('Connection lost.'); };
+}
+
+function resetBtn(){
+  const btn=document.getElementById('btnScan');
+  btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-magnifying-glass me-1"></i>Scan Now';
+  document.getElementById('btnStop').style.display='none';
+  document.getElementById('progWrap').style.display='none';
+  document.getElementById('btnStop').disabled=false;
+  document.getElementById('btnStop').innerHTML='<i class="fa-solid fa-stop me-1"></i>Stop';
+}
+
+function scanDone(m){
+  resetBtn();
+  document.getElementById('sTotal').textContent=(m.total_scanned||0).toLocaleString();
+  document.getElementById('sFound').textContent=rowCount;
+  document.getElementById('sTime').textContent=new Date().toLocaleTimeString('en-IN');
+  document.getElementById('sDur').textContent=(m.elapsed_sec||0)+'s';
+  if(rowCount===0){
+    document.getElementById('empty').style.display='block';
+    document.getElementById('empty').innerHTML=`
+      <i class="fa-solid fa-circle-exclamation d-block" style="color:var(--yellow)"></i>
+      <h5 class="mt-2">No stocks matched</h5>
+      <p>Try unchecking some filters or widening the ranges.</p>`;
+  }
+}
+
+function scanErr(msg){
+  resetBtn();
+  document.getElementById('empty').style.display='block';
+  document.getElementById('empty').innerHTML=`
+    <i class="fa-solid fa-triangle-exclamation d-block" style="color:var(--red)"></i>
+    <h5 class="mt-2">Error</h5><p>${msg}</p>`;
+}
+
+async function stopScan(){
+  const b=document.getElementById('btnStop');
+  b.disabled=true; b.innerHTML='<i class="fa-solid fa-spinner fa-spin me-1"></i>Stopping…';
+  try{ await fetch('/api/stop',{method:'POST'}); }catch(e){}
+}
+
+// ── Load cached ────────────────────────────────────────────────────────────────
+async function loadCached(){
+  try{
+    const r=await fetch('/api/cached'); const d=await r.json();
+    if(d.results&&d.results.length>0){
+      d.results.forEach(s=>addResult(s));
+      document.getElementById('sTotal').textContent=(d.total_scanned||0).toLocaleString();
+      document.getElementById('sFound').textContent=d.results.length;
+      document.getElementById('sTime').textContent=d.last_scan||'—';
+      document.getElementById('sDur').textContent=d.elapsed_sec?d.elapsed_sec+'s':'—';
+    }
+  }catch(e){}
+}
+function exportCSV(){ window.location.href='/api/export'; }
+
+// ── Chart ─────────────────────────────────────────────────────────────────────
+let charts=[];
+function destroyCharts(){ charts.forEach(c=>c.remove()); charts=[]; }
+
+async function openChart(sym,name,rsi,pctH,mcCr){
+  document.getElementById('ctitle').textContent=sym;
+  document.getElementById('csubt').textContent=`${name}  ·  RSI ${rsi}  ·  ${parseFloat(pctH).toFixed(1)}% from 52W High  ·  ₹${parseFloat(mcCr).toLocaleString('en-IN')} Cr`;
+  document.getElementById('cload').style.display='flex';
+  document.getElementById('ccon').style.display='none';
+  destroyCharts();
+  new bootstrap.Modal(document.getElementById('chartModal')).show();
+  try{
+    const resp=await fetch(`/api/chart/${sym}`);
+    if(!resp.ok) throw new Error('No data');
+    const data=await resp.json();
+    document.getElementById('cload').style.display='none';
+    document.getElementById('ccon').style.display='block';
+    const base={
+      layout:{background:{color:'#1a1d27'},textColor:'#8892a4'},
+      grid:{vertLines:{color:'#2a2d3e'},horzLines:{color:'#2a2d3e'}},
+      crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+      rightPriceScale:{borderColor:'#2a2d3e'},
+      timeScale:{borderColor:'#2a2d3e',timeVisible:true},
+    };
+    const mc=LightweightCharts.createChart(document.getElementById('cm'),{...base,height:350});
+    charts.push(mc);
+    mc.addCandlestickSeries({upColor:'#10b981',downColor:'#ef4444',borderUpColor:'#10b981',borderDownColor:'#ef4444',wickUpColor:'#10b981',wickDownColor:'#ef4444'}).setData(data.candles);
+    mc.addLineSeries({color:'#f59e0b',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:'52W High'})
+      .setData(data.candles.map(c=>({time:c.time,value:data.high_52w})));
+    const rc=LightweightCharts.createChart(document.getElementById('cr'),{...base,height:120});
+    charts.push(rc);
+    const rd=data.rsi.filter(r=>r.value!==null);
+    rc.addLineSeries({color:'#818cf8',lineWidth:2,priceLineVisible:false}).setData(rd);
+    rc.addLineSeries({color:'#ef4444',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false}).setData(rd.map(r=>({time:r.time,value:70})));
+    rc.addLineSeries({color:'#10b981',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false}).setData(rd.map(r=>({time:r.time,value:30})));
+    const vc=LightweightCharts.createChart(document.getElementById('cv'),{...base,height:80});
+    charts.push(vc);
+    vc.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:''}).setData(data.volume);
+    mc.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(r){rc.timeScale().setVisibleLogicalRange(r);vc.timeScale().setVisibleLogicalRange(r);}});
+    rc.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(r)mc.timeScale().setVisibleLogicalRange(r);});
+    mc.timeScale().fitContent();
+    const last=data.candles.at(-1), lr=rd.at(-1);
+    document.getElementById('cleg').innerHTML=`
+      <span>O <strong>₹${last.open}</strong></span><span>H <strong>₹${last.high}</strong></span>
+      <span>L <strong>₹${last.low}</strong></span><span>C <strong>₹${last.close}</strong></span>
+      <span>RSI <strong style="color:#818cf8">${lr?lr.value.toFixed(1):'—'}</strong></span>
+      <span>52W High <strong style="color:#f59e0b">₹${data.high_52w}</strong></span>
+      <span style="margin-left:auto;color:#4b5563">1-year daily · NSE</span>`;
+  }catch(err){
+    document.getElementById('cload').innerHTML=`<div class="text-center"><i class="fa-solid fa-triangle-exclamation fa-2x mb-3 text-warning"></i><br>${err.message}</div>`;
+  }
+}
+document.addEventListener('hidden.bs.modal',destroyCharts);
+
+loadCached();
+</script>
+</body>
+</html>
