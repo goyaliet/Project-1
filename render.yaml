@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: stock-scanner
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --timeout 660 --workers 1 --threads 4 --worker-class gthread
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
